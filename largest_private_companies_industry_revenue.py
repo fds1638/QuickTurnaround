@@ -7,6 +7,7 @@ import pandas as pd
 # Done on Dec 21, 2022.
 # I had never scraped before and it had been a while since I had used pandas.
 # I wanted a project showing a quick turnaround doing something that I didn't already know how to do.
+# Dec 22, 2022: Use a list comprehension.
 
 def get_billions(s):
     """ Assume s is of the form: $xx.x B
@@ -19,6 +20,18 @@ def get_employee_count(e):
     """ Assume e is an integer """
     return float(e.replace(',',''))
 
+# Pass by assignment means row isn't copied.
+def row_info(row):
+    """ Extracts info from row of table """
+    rank = row.find('div', attrs = {'class':'rank first table-cell rank'}).text
+    name = row.find('div', attrs = {'class':'organizationName second table-cell name'}).text
+    state = row.find('div', attrs = {'class':'state table-cell state'}).text
+    industry = row.find('div', attrs = {'class':'industries table-cell industry'}).text
+    revenue = row.find('div', attrs = {'class':'revenue table-cell revenue'}).text
+    employees = row.find('div', attrs = {'class':'employees table-cell employees'}).text
+    company_data = (rank, name, state, industry, get_billions(revenue), get_employee_count(employees))
+    return company_data
+    
 def main():
     """ Get table from Forbes 2022 largest private companies,
     and print the company with highest revenue per employee in each industry.
@@ -30,20 +43,11 @@ def main():
     soup = BeautifulSoup(r.content, 'html5lib')
     tables = soup.find_all('div', attrs = {'class':'table-row-group'}) 
 
+    # Use a list comprehension. Avoids calling append multiple times.
     # Go through the tables, put the information in a list. Transform some strings to numbers.    
-    companies_data = []
-    for table in tables:
-        for row in table.findAll('a'):
-            rank = row.find('div', attrs = {'class':'rank first table-cell rank'}).text
-            name = row.find('div', attrs = {'class':'organizationName second table-cell name'}).text
-            state = row.find('div', attrs = {'class':'state table-cell state'}).text
-            industry = row.find('div', attrs = {'class':'industries table-cell industry'}).text
-            revenue = row.find('div', attrs = {'class':'revenue table-cell revenue'}).text
-            employees = row.find('div', attrs = {'class':'employees table-cell employees'}).text
-    
-            company_data = (rank, name, state, industry, get_billions(revenue), get_employee_count(employees))
-            companies_data.append(company_data)
-    
+    companies_data = [row_info(row) for table in tables for row in table.findAll('a')]
+
+    # It is better to first create a list then create the data frame at one time rather than appending to a dataframe.    
     # Create a dataframe out of the list, calculate revenue per employee.
     df = pd.DataFrame(companies_data, columns=['rank','name','state','industry','revenue(B)','employees'])
     df['revenue_per_employee'] = df['revenue(B)']/df['employees']*1000000000.0
